@@ -1,5 +1,6 @@
 <?php
 
+use Console\ImportCommand;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,7 +23,9 @@ class LaravelSnowflakeSyncServiceProvider extends ServiceProvider
         ], 'laravel-snowflake-sync-config');
 
         if ($this->app->runningInConsole()) {
-            // Commands...
+            $this->commands([
+                ImportCommand::class,
+            ]);
         }
     }
 
