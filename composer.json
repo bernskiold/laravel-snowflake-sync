@@ -1,0 +1,62 @@
+{
+    "name": "bernskiold/laravel-snowflake-sync",
+    "description": "A package for Laravel to sync models to a Snowflake database.",
+    "keywords": [
+        "bernskiold",
+        "laravel",
+        "snowflake"
+    ],
+    "homepage": "https://github.com/bernskiold/laravel-snowflake-sync",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bernskiold",
+            "email": "hello@bernskiold.com",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2|^8.3|^8.4",
+        "illuminate/contracts": "^11.0",
+        "laravel/prompts": "^0.1.18|^0.2.0|^0.3.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "nunomaduro/collision": "^8.0",
+        "orchestra/testbench": "^9.0",
+        "pestphp/pest": "^2.0|^3.0",
+        "pestphp/pest-plugin-laravel": "^2.0|^v3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bernskiold\\LaravelSnowflakeSync\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bernskiold\\LaravelSnowflakeSync\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bernskiold\\LaravelSnowflakeSync\\LaravelSnowflakeSyncServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@php ./vendor/bin/testbench package:discover --ansi",
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "format": "vendor/bin/pint"
+    }
+}
