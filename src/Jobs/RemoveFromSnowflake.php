@@ -1,15 +1,17 @@
 <?php
 
-namespace Jobs;
+namespace Bernskiold\LaravelSnowflakeSync\Jobs;
 
+use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Queue\SerializesModels;
-use SnowflakeSync;
+
 use function app;
 use function count;
 
-class RemoveFromSnowflake
+class RemoveFromSnowflake implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Events;
+namespace Bernskiold\LaravelSnowflakeSync\Events;
 
 use Illuminate\Database\Eloquent\Collection;
 

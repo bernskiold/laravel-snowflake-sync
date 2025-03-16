@@ -1,0 +1,5 @@
+<?php
+
+use Bernskiold\LaravelSnowflakeSync\Tests\TestCase;
+
+uses(TestCase::class)->in(__DIR__);

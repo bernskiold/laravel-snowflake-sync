@@ -1,12 +1,13 @@
 <?php
 
-use Console\ImportCommand;
+namespace Bernskiold\LaravelSnowflakeSync;
+
+use Bernskiold\LaravelSnowflakeSync\Console\ImportCommand;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\ServiceProvider;
 
 class LaravelSnowflakeSyncServiceProvider extends ServiceProvider
 {
-
     public function register(): void
     {
         $this->mergeConfigFrom(
@@ -28,5 +29,4 @@ class LaravelSnowflakeSyncServiceProvider extends ServiceProvider
             ]);
         }
     }
-
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Observers;
+namespace Bernskiold\LaravelSnowflakeSync\Observers;
 
 use Closure;
 use Illuminate\Database\Eloquent\Model;
@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelObserver
 {
-
     public bool $afterCommit = false;
 
     protected bool $usingSoftDeletes = false;
@@ -19,7 +18,7 @@ class ModelObserver
 
     public function __construct()
     {
-        $this->afterCommit = config('snowflake-sync.', false);
+        $this->afterCommit = config('snowflake-sync.after_commit', false);
     }
 
     public static function enableSyncingFor($class)
@@ -45,11 +44,11 @@ class ModelObserver
             return;
         }
 
-        if (!$model->snowflakeShouldBeUpdated()) {
+        if (! $model->snowflakeShouldBeUpdated()) {
             return;
         }
 
-        if (!$model->shouldBeSearchable()) {
+        if (! $model->shouldSyncToSnowflake()) {
             if ($model->wasSyncingToSnowflakeBeforeUpdate()) {
                 $model->removeFromSnowflake();
             }
@@ -66,7 +65,7 @@ class ModelObserver
             return;
         }
 
-        if (!$model->wasSyncingToSnowflakeBeforeDelete()) {
+        if (! $model->wasSyncingToSnowflakeBeforeDelete()) {
             return;
         }
 

@@ -1,11 +1,12 @@
 <?php
 
-use Jobs\RemoveFromSnowflake;
-use Jobs\SnowflakeImport;
+namespace Bernskiold\LaravelSnowflakeSync;
+
+use Bernskiold\LaravelSnowflakeSync\Jobs\RemoveFromSnowflake;
+use Bernskiold\LaravelSnowflakeSync\Jobs\SnowflakeImport;
 
 class SnowflakeSync
 {
-
     public const VERSION = '1.0.0';
 
     public static $importJob = SnowflakeImport::class;

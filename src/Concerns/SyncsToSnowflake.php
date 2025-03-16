@@ -1,17 +1,15 @@
 <?php
 
-namespace Concerns;
+namespace Bernskiold\LaravelSnowflakeSync\Concerns;
 
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Observers\ModelObserver;
-use SnowflakeSync;
-use Illuminate\Support\Collection as BaseCollection;
+use Bernskiold\LaravelSnowflakeSync\Observers\ModelObserver;
+use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection as BaseCollection;
 
 trait SyncsToSnowflake
 {
-
     public static function bootSyncsToSnowflake()
     {
         static::observe(new ModelObserver);
@@ -32,7 +30,7 @@ trait SyncsToSnowflake
         });
     }
 
-    public function queueSyncToSnowflake(Collection $models): void
+    public function queueSyncToSnowflake(BaseCollection $models): void
     {
         if ($models->isEmpty()) {
             return;
@@ -43,7 +41,7 @@ trait SyncsToSnowflake
             ->onConnection($models->first()->syncWithSnowflakeUsing()));
     }
 
-    public function queueRemoveFromSnowflake(Collection $models): void
+    public function queueRemoveFromSnowflake(BaseCollection $models): void
     {
         if ($models->isEmpty()) {
             return;
@@ -119,12 +117,13 @@ trait SyncsToSnowflake
             ->when(true, function (EloquentBuilder $query) use ($self) {
                 $self->syncAllToSnowflakeUsing($query);
             })
-            ->when($softDelete, function (EloquentBuilder $query) {
+            ->when($softDelete === 'withTrashed', function (EloquentBuilder $query) {
                 $query->withTrashed();
             })
             ->orderBy(
                 $self->qualifyColumn($self->getSnowflakeKeyName())
             )
+            ->get()
             ->syncToSnowflake($chunk);
     }
 
@@ -160,12 +159,12 @@ trait SyncsToSnowflake
 
     public static function withoutSyncingToSnowflake($callback)
     {
-        static::enableSnowflakeSyncing();
+        static::disableSnowflakeSyncing();
 
         try {
             return $callback();
         } finally {
-            static::disableSnowflakeSyncing();
+            static::enableSnowflakeSyncing();
         }
     }
 }

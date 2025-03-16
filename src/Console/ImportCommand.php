@@ -1,8 +1,8 @@
 <?php
 
-namespace Console;
+namespace Bernskiold\LaravelSnowflakeSync\Console;
 
-use Events\ModelsImported;
+use Bernskiold\LaravelSnowflakeSync\Events\ModelsImported;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Events\Dispatcher;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -23,7 +23,7 @@ class ImportCommand extends Command
         $model = new $class;
 
         $events->listen(ModelsImported::class, function ($event) use ($class) {
-            $key = $event->models->last()->getScoutKey();
+            $key = $event->models->last()->getSnowflakeKey();
 
             $this->line('<comment>Imported ['.$class.'] models up to ID:</comment> '.$key);
         });

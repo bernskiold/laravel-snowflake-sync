@@ -1,11 +1,12 @@
 <?php
 
+namespace Bernskiold\LaravelSnowflakeSync;
+
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class SnowflakeEngine
 {
-
     public function update(Collection $models): void
     {
         if ($models->isEmpty()) {
@@ -16,7 +17,7 @@ class SnowflakeEngine
         $connection = $models->first()->snowflakeConnection();
         $keyColumn = $models->first()->getSnowflakeKey();
 
-        $objects = $models
+        $models
             ->map(function ($model) {
                 $snowflakeData = $model->toSnowflake();
 
@@ -59,5 +60,4 @@ class SnowflakeEngine
             ->whereIn($keyColumn, $keys)
             ->delete();
     }
-
 }
