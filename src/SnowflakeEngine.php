@@ -4,6 +4,8 @@ namespace Bernskiold\LaravelSnowflakeSync;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use function in_array;
+use function strtoupper;
 
 class SnowflakeEngine
 {
@@ -15,9 +17,16 @@ class SnowflakeEngine
 
         $table = $models->first()->snowflakeTable();
         $connection = $models->first()->snowflakeConnection();
-        $keyColumn = $models->first()->getSnowflakeKey();
+        $keyColumn = $models->first()->getSnowflakeKeyName();
 
-        $models
+        $existing = DB::connection($connection)
+            ->table($table)
+            ->select($keyColumn)
+            ->get()
+            ->pluck(strtoupper($keyColumn)) // Snowflake has uppercase column names.
+            ->all();
+
+        $data = $models
             ->map(function ($model) {
                 $snowflakeData = $model->toSnowflake();
 
@@ -28,14 +37,29 @@ class SnowflakeEngine
                 return $snowflakeData;
             })
             ->filter()
-            ->values()
+            ->values();
+
+        // Update existing records one by one.
+        $data
+            ->filter(fn($model) => in_array($model[$keyColumn], $existing))
             ->each(function (array $data) use ($table, $connection, $keyColumn) {
                 DB::connection($connection)
                     ->table($table)
-                    ->updateOrInsert(
-                        [$keyColumn => $data[$keyColumn]],
-                        $data
-                    );
+                    ->where($keyColumn, $data[$keyColumn])
+                    ->update($data);
+            });
+
+        // Bulk-insert new records.
+        $data
+            ->filter(fn($model) => !in_array($model[$keyColumn], $existing))
+            ->tap(function ($data) use ($table, $connection, $keyColumn, $existing) {
+                if ($data->isEmpty()) {
+                    return;
+                }
+
+                DB::connection($connection)
+                    ->table($table)
+                    ->insert($data->toArray());
             });
     }
 
@@ -47,7 +71,7 @@ class SnowflakeEngine
 
         $table = $models->first()->snowflakeTable();
         $connection = $models->first()->snowflakeConnection();
-        $keyColumn = $models->first()->getSnowflakeKey();
+        $keyColumn = $models->first()->getSnowflakeKeyName();
 
         $keys = $models
             ->map(function ($model) {
