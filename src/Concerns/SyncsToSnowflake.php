@@ -111,7 +111,7 @@ trait SyncsToSnowflake
     {
         $self = new static;
 
-        $softDelete = static::usesSoftDelete() ? 'withTrashed' : 'newQuery';
+        $softDelete = static::usesSoftDeleteSnowflakeSync() ? 'withTrashed' : 'newQuery';
 
         $self->newQuery()
             ->when(true, function (EloquentBuilder $query) use ($self) {
@@ -142,7 +142,7 @@ trait SyncsToSnowflake
         return $models;
     }
 
-    protected static function usesSoftDelete(): bool
+    protected static function usesSoftDeleteSnowflakeSync(): bool
     {
         return in_array(SoftDeletes::class, class_uses_recursive(get_called_class()));
     }
