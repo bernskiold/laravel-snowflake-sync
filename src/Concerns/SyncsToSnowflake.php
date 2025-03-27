@@ -7,6 +7,11 @@ use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection as BaseCollection;
+use function class_uses_recursive;
+use function config;
+use function dispatch;
+use function get_called_class;
+use function in_array;
 
 trait SyncsToSnowflake
 {
@@ -124,6 +129,7 @@ trait SyncsToSnowflake
                 $self->qualifyColumn($self->getSnowflakeKeyName())
             )
             ->get()
+            ->filter(fn($model) => $model->shouldSyncToSnowflake())
             ->syncToSnowflake($chunk);
     }
 
