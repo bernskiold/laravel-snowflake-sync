@@ -38,7 +38,7 @@ class ModelObserver
 
     public function saved(Model $model): void
     {
-        if (static::syncingDisabledFor($model)) {
+        if ($this->shouldSkip($model)) {
             return;
         }
 
@@ -59,7 +59,7 @@ class ModelObserver
 
     public function deleted(Model $model): void
     {
-        if (static::syncingDisabledFor($model)) {
+        if ($this->shouldSkip($model)) {
             return;
         }
 
@@ -67,7 +67,7 @@ class ModelObserver
             return;
         }
 
-        if ($this->usesSoftDelete($model)) {
+        if ($this->usesSoftDelete($model) && ! $model->removeFromSnowflakeOnSoftDelete()) {
             $this->whileForcingUpdate(function () use ($model) {
                 $this->saved($model);
             });
@@ -78,7 +78,7 @@ class ModelObserver
 
     public function forceDeleted(Model $model): void
     {
-        if (static::syncingDisabledFor($model)) {
+        if ($this->shouldSkip($model)) {
             return;
         }
 
@@ -87,6 +87,10 @@ class ModelObserver
 
     public function restored(Model $model): void
     {
+        if ($this->shouldSkip($model)) {
+            return;
+        }
+
         $this->whileForcingUpdate(function () use ($model) {
             $this->saved($model);
         });
@@ -106,5 +110,15 @@ class ModelObserver
     protected function usesSoftDelete(Model $model)
     {
         return in_array(SoftDeletes::class, class_uses_recursive($model));
+    }
+
+    protected function shouldSkip(Model $model): bool
+    {
+        return static::syncingDisabledFor($model) || ! $this->syncingEnabled();
+    }
+
+    protected function syncingEnabled(): bool
+    {
+        return (bool) config('snowflake-sync.enabled', true);
     }
 }

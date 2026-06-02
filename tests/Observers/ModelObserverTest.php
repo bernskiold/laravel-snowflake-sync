@@ -1,6 +1,7 @@
 <?php
 
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
+use Bernskiold\LaravelSnowflakeSync\Tests\Testing\SoftDeleteRemovesTestModel;
 use Bernskiold\LaravelSnowflakeSync\Tests\Testing\SoftDeleteTestModel;
 use Bernskiold\LaravelSnowflakeSync\Tests\Testing\TestModel;
 use Illuminate\Support\Facades\Queue;
@@ -81,4 +82,43 @@ it('does not dispatch when syncing is disabled for force delete', function () {
     Queue::assertNotPushed(SnowflakeSync::$removeJob);
 
     SoftDeleteTestModel::enableSnowflakeSyncing();
+});
+
+it('dispatches remove job on soft delete when the model opts in', function () {
+    $model = SoftDeleteRemovesTestModel::create(['name' => 'Test']);
+    Queue::fake();
+
+    $model->delete();
+
+    Queue::assertPushed(SnowflakeSync::$removeJob);
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
+});
+
+it('does not dispatch on create when syncing is disabled via config', function () {
+    config(['snowflake-sync.enabled' => false]);
+
+    TestModel::create(['name' => 'Test']);
+
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
+});
+
+it('does not dispatch on delete when syncing is disabled via config', function () {
+    $model = TestModel::create(['name' => 'Test']);
+    config(['snowflake-sync.enabled' => false]);
+    Queue::fake();
+
+    $model->delete();
+
+    Queue::assertNotPushed(SnowflakeSync::$removeJob);
+});
+
+it('does not dispatch on restore when syncing is disabled via config', function () {
+    $model = SoftDeleteTestModel::create(['name' => 'Test']);
+    $model->delete();
+    config(['snowflake-sync.enabled' => false]);
+    Queue::fake();
+
+    $model->restore();
+
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
 });

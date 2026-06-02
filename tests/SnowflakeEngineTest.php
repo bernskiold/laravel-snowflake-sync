@@ -3,6 +3,7 @@
 use Bernskiold\LaravelSnowflakeSync\SnowflakeEngine;
 use Bernskiold\LaravelSnowflakeSync\Tests\Testing\TestModel;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -99,4 +100,28 @@ it('skips models with empty toSnowflake data', function () {
 
     $rows = DB::connection('snowflake')->table('test_models')->get();
     expect($rows)->toHaveCount(0);
+});
+
+it('rolls back the delete when the insert fails', function () {
+    $model = TestModel::create(['name' => 'Original']);
+    $engine = new SnowflakeEngine;
+    $engine->update(new Collection([$model]));
+
+    // toSnowflake returns a NOT NULL violation, so the insert (and the
+    // preceding delete of id=1) must roll back, leaving the original row.
+    $bad = new class extends TestModel
+    {
+        public function toSnowflake(): array
+        {
+            return ['id' => 1, 'name' => null];
+        }
+    };
+    $bad->id = 1;
+    $bad->exists = true;
+
+    expect(fn () => $engine->update(new Collection([$bad])))->toThrow(QueryException::class);
+
+    $rows = DB::connection('snowflake')->table('test_models')->get();
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()->name)->toBe('Original');
 });
