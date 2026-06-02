@@ -10,8 +10,6 @@ class ModelObserver
 {
     public bool $afterCommit = false;
 
-    protected bool $usingSoftDeletes = false;
-
     protected bool $forceSaving = false;
 
     protected static array $syncingDisabledFor = [];
@@ -44,7 +42,7 @@ class ModelObserver
             return;
         }
 
-        if (! $model->snowflakeShouldBeUpdated()) {
+        if (! $this->forceSaving && ! $model->snowflakeShouldBeUpdated()) {
             return;
         }
 
@@ -69,7 +67,7 @@ class ModelObserver
             return;
         }
 
-        if ($this->usingSoftDeletes && $this->usesSoftDelete($model)) {
+        if ($this->usesSoftDelete($model)) {
             $this->whileForcingUpdate(function () use ($model) {
                 $this->saved($model);
             });
@@ -98,11 +96,11 @@ class ModelObserver
     {
         $this->forceSaving = true;
 
-        $result = $callback();
-
-        $this->forceSaving = false;
-
-        return $result;
+        try {
+            return $callback();
+        } finally {
+            $this->forceSaving = false;
+        }
     }
 
     protected function usesSoftDelete(Model $model)
