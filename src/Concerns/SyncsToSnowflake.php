@@ -2,11 +2,13 @@
 
 namespace Bernskiold\LaravelSnowflakeSync\Concerns;
 
+use Bernskiold\LaravelSnowflakeSync\Events\ModelsImported;
 use Bernskiold\LaravelSnowflakeSync\Observers\ModelObserver;
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Collection as BaseCollection;
+
 use function class_uses_recursive;
 use function config;
 use function dispatch;
@@ -17,25 +19,18 @@ trait SyncsToSnowflake
 {
     public static function bootSyncsToSnowflake()
     {
-        static::observe(new ModelObserver);
+        $observer = new ModelObserver;
 
-        (new static)->registerSnowflakeSyncMacros();
+        static::saved(fn ($model) => $observer->saved($model));
+        static::deleted(fn ($model) => $observer->deleted($model));
+
+        if (static::usesSoftDeleteSnowflakeSync()) {
+            static::registerModelEvent('forceDeleted', fn ($model) => $observer->forceDeleted($model));
+            static::registerModelEvent('restored', fn ($model) => $observer->restored($model));
+        }
     }
 
-    public function registerSnowflakeSyncMacros()
-    {
-        $self = $this;
-
-        BaseCollection::macro('syncToSnowflake', function () use ($self) {
-            $self->queueSyncToSnowflake($this);
-        });
-
-        BaseCollection::macro('removeFromSnowflake', function () use ($self) {
-            $self->queueRemoveFromSnowflake($this);
-        });
-    }
-
-    public function queueSyncToSnowflake(BaseCollection $models): void
+    public function queueSyncToSnowflake(EloquentCollection $models): void
     {
         if ($models->isEmpty()) {
             return;
@@ -46,15 +41,15 @@ trait SyncsToSnowflake
             ->onConnection($models->first()->syncWithSnowflakeUsing()));
     }
 
-    public function queueRemoveFromSnowflake(BaseCollection $models): void
+    public function queueRemoveFromSnowflake(EloquentCollection $models): void
     {
         if ($models->isEmpty()) {
             return;
         }
 
-        dispatch(new SnowflakeSync::$removeJob($models))
+        dispatch((new SnowflakeSync::$removeJob($models))
             ->onQueue($models->first()->syncWithSnowflakeUsingQueue())
-            ->onConnection($models->first()->syncWithSnowflakeUsing());
+            ->onConnection($models->first()->syncWithSnowflakeUsing()));
     }
 
     public function snowflakeShouldBeUpdated(): bool
@@ -115,37 +110,36 @@ trait SyncsToSnowflake
     public static function syncAllToSnowflake(?int $chunk = null): void
     {
         $self = new static;
-
-        $softDelete = static::usesSoftDeleteSnowflakeSync() ? 'withTrashed' : 'newQuery';
+        $chunk = $chunk ?? config('snowflake-sync.chunk', 500);
 
         $self->newQuery()
-            ->when(true, function (EloquentBuilder $query) use ($self) {
-                $self->syncAllToSnowflakeUsing($query);
-            })
-            ->when($softDelete === 'withTrashed', function (EloquentBuilder $query) {
-                $query->withTrashed();
-            })
-            ->orderBy(
-                $self->qualifyColumn($self->getSnowflakeKeyName())
-            )
-            ->get()
-            ->filter(fn($model) => $model->shouldSyncToSnowflake())
-            ->syncToSnowflake($chunk);
+            ->when(static::usesSoftDeleteSnowflakeSync(), fn (EloquentBuilder $query) => $query->withTrashed())
+            ->tap(fn (EloquentBuilder $query) => $self->syncAllToSnowflakeUsing($query))
+            ->orderBy($self->qualifyColumn($self->getSnowflakeKeyName()))
+            ->chunkById($chunk, function (EloquentCollection $models) use ($self) {
+                $syncable = $models->filter(fn ($model) => $model->shouldSyncToSnowflake());
+
+                if ($syncable->isNotEmpty()) {
+                    $self->queueSyncToSnowflake($syncable);
+                }
+
+                event(new ModelsImported($models));
+            });
     }
 
     public function syncToSnowflake(): void
     {
-        $this->newCollection([$this])->syncToSnowflake();
+        $this->queueSyncToSnowflake($this->newCollection([$this]));
+    }
+
+    public function removeFromSnowflake(): void
+    {
+        $this->queueRemoveFromSnowflake($this->newCollection([$this]));
     }
 
     protected function syncAllToSnowflakeUsing(EloquentBuilder $query)
     {
         return $query;
-    }
-
-    public function syncToSnowflakeUsing(BaseCollection $models)
-    {
-        return $models;
     }
 
     protected static function usesSoftDeleteSnowflakeSync(): bool

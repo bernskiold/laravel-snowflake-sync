@@ -1,47 +1,59 @@
 <?php
 
+use Bernskiold\LaravelSnowflakeSync\Events\ModelsRemoved;
 use Bernskiold\LaravelSnowflakeSync\Jobs\RemoveFromSnowflake;
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Database\Eloquent\Collection;
-use Mockery;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
+
+beforeEach(function () {
+    $this->originalEngine = SnowflakeSync::$engine;
+});
 
 it('does not call the engine when collection is empty', function () {
-    // Create a mock of the engine
+    Event::fake();
+
     $engineMock = Mockery::mock('engine');
     $engineMock->shouldNotReceive('delete');
 
-    // Bind the mock to the container
     SnowflakeSync::$engine = get_class($engineMock);
     app()->instance(get_class($engineMock), $engineMock);
 
-    // Create an empty collection
-    $collection = new Collection;
-
-    // Create and dispatch the job
-    $job = new RemoveFromSnowflake($collection);
+    $job = new RemoveFromSnowflake(new Collection);
     $job->handle();
+
+    Event::assertNotDispatched(ModelsRemoved::class);
 });
 
-it('calls the engine with models when collection is not empty', function () {
-    // Create a mock model
-    $model = new class extends \Illuminate\Database\Eloquent\Model {};
+it('calls the engine and fires event when collection is not empty', function () {
+    Event::fake();
+
+    $model = new class extends Model {};
     $collection = new Collection([$model]);
 
-    // Create a mock of the engine
     $engineMock = Mockery::mock('engine');
     $engineMock->shouldReceive('delete')
         ->once()
         ->with(Mockery::type(Collection::class));
 
-    // Bind the mock to the container
     SnowflakeSync::$engine = get_class($engineMock);
     app()->instance(get_class($engineMock), $engineMock);
 
-    // Create and dispatch the job
     $job = new RemoveFromSnowflake($collection);
     $job->handle();
+
+    Event::assertDispatched(ModelsRemoved::class);
+});
+
+it('has retry configuration', function () {
+    $job = new RemoveFromSnowflake(new Collection);
+
+    expect($job->tries)->toBe(3)
+        ->and($job->backoff)->toBe([10, 60, 300]);
 });
 
 afterEach(function () {
+    SnowflakeSync::$engine = $this->originalEngine;
     Mockery::close();
 });

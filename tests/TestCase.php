@@ -32,5 +32,8 @@ class TestCase extends Orchestra
 
         $migration = include __DIR__.'/database/migrations/create_test_models_table.php';
         $migration->up();
+
+        $softDeleteMigration = include __DIR__.'/database/migrations/create_soft_delete_test_models_table.php';
+        $softDeleteMigration->up();
     }
 }

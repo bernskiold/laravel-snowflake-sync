@@ -4,8 +4,6 @@ namespace Bernskiold\LaravelSnowflakeSync;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use function in_array;
-use function strtoupper;
 
 class SnowflakeEngine
 {
@@ -15,52 +13,30 @@ class SnowflakeEngine
             return;
         }
 
-        $table = $models->first()->snowflakeTable();
-        $connection = $models->first()->snowflakeConnection();
-        $keyColumn = $models->first()->getSnowflakeKeyName();
-
-        $existing = DB::connection($connection)
-            ->table($table)
-            ->select($keyColumn)
-            ->get()
-            ->pluck(strtoupper($keyColumn)) // Snowflake has uppercase column names.
-            ->all();
+        $first = $models->first();
+        $table = $first->snowflakeTable();
+        $connection = $first->snowflakeConnection();
+        $keyColumn = $first->getSnowflakeKeyName();
 
         $data = $models
-            ->map(function ($model) {
-                $snowflakeData = $model->toSnowflake();
-
-                if (empty($snowflakeData)) {
-                    return;
-                }
-
-                return $snowflakeData;
-            })
+            ->map(fn ($model) => $model->toSnowflake())
             ->filter()
             ->values();
 
-        // Update existing records one by one.
-        $data
-            ->filter(fn($model) => in_array($model[$keyColumn], $existing))
-            ->each(function (array $data) use ($table, $connection, $keyColumn) {
-                DB::connection($connection)
-                    ->table($table)
-                    ->where($keyColumn, $data[$keyColumn])
-                    ->update($data);
-            });
+        if ($data->isEmpty()) {
+            return;
+        }
 
-        // Bulk-insert new records.
-        $data
-            ->filter(fn($model) => !in_array($model[$keyColumn], $existing))
-            ->tap(function ($data) use ($table, $connection, $keyColumn, $existing) {
-                if ($data->isEmpty()) {
-                    return;
-                }
+        $keys = $data->pluck($keyColumn)->filter()->values();
 
-                DB::connection($connection)
-                    ->table($table)
-                    ->insert($data->toArray());
-            });
+        DB::connection($connection)
+            ->table($table)
+            ->whereIn($keyColumn, $keys)
+            ->delete();
+
+        DB::connection($connection)
+            ->table($table)
+            ->insert($data->toArray());
     }
 
     public function delete(Collection $models): void
@@ -69,14 +45,13 @@ class SnowflakeEngine
             return;
         }
 
-        $table = $models->first()->snowflakeTable();
-        $connection = $models->first()->snowflakeConnection();
-        $keyColumn = $models->first()->getSnowflakeKeyName();
+        $first = $models->first();
+        $table = $first->snowflakeTable();
+        $connection = $first->snowflakeConnection();
+        $keyColumn = $first->getSnowflakeKeyName();
 
         $keys = $models
-            ->map(function ($model) {
-                return $model->getSnowflakeKey();
-            })
+            ->map(fn ($model) => $model->getSnowflakeKey())
             ->values();
 
         DB::connection($connection)

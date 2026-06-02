@@ -2,6 +2,7 @@
 
 namespace Bernskiold\LaravelSnowflakeSync\Jobs;
 
+use Bernskiold\LaravelSnowflakeSync\Events\ModelsImported;
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,6 +13,10 @@ class SnowflakeImport implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
+    public int $tries = 3;
+
+    public array $backoff = [10, 60, 300];
+
     public Collection $models;
 
     public function __construct(Collection $models)
@@ -19,12 +24,14 @@ class SnowflakeImport implements ShouldQueue
         $this->models = $models;
     }
 
-    public function handle()
+    public function handle(): void
     {
-        if (count($this->models) === 0) {
+        if ($this->models->isEmpty()) {
             return;
         }
 
         app(SnowflakeSync::$engine)->update($this->models);
+
+        event(new ModelsImported($this->models));
     }
 }

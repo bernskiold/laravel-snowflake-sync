@@ -2,7 +2,6 @@
 
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 use Bernskiold\LaravelSnowflakeSync\Tests\Testing\TestModel;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
@@ -17,23 +16,9 @@ it('can sync a model to snowflake', function () {
     Queue::assertPushed(SnowflakeSync::$importJob);
 });
 
-it('can sync multiple models to snowflake', function () {
-    $models = new Collection([
-        new TestModel(['name' => 'Test 1']),
-        new TestModel(['name' => 'Test 2']),
-    ]);
-
-    $models->syncToSnowflake();
-
-    Queue::assertPushed(SnowflakeSync::$importJob);
-});
-
-it('can remove models from snowflake', function () {
-    $models = new Collection([
-        new TestModel(['name' => 'Test 1']),
-    ]);
-
-    $models->removeFromSnowflake();
+it('can remove a model from snowflake', function () {
+    $model = new TestModel(['name' => 'Test']);
+    $model->removeFromSnowflake();
 
     Queue::assertPushed(SnowflakeSync::$removeJob);
 });
@@ -59,13 +44,58 @@ it('converts model to snowflake format', function () {
     expect($snowflakeData)->toBe($model->toArray());
 });
 
-it('can sync all models to snowflake', function () {
+it('can sync all models to snowflake using chunkById', function () {
     DB::table('test_models')->insert([
         ['name' => 'Test 1'],
         ['name' => 'Test 2'],
     ]);
 
     TestModel::syncAllToSnowflake();
+
+    Queue::assertPushed(SnowflakeSync::$importJob);
+});
+
+it('does not dispatch job for empty sync', function () {
+    TestModel::syncAllToSnowflake();
+
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
+});
+
+it('can disable and enable syncing', function () {
+    TestModel::disableSnowflakeSyncing();
+
+    $model = TestModel::create(['name' => 'Test']);
+
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
+
+    TestModel::enableSnowflakeSyncing();
+
+    $model->update(['name' => 'Updated']);
+
+    Queue::assertPushed(SnowflakeSync::$importJob);
+});
+
+it('disables syncing within callback and re-enables after', function () {
+    TestModel::withoutSyncingToSnowflake(function () {
+        TestModel::create(['name' => 'Test']);
+    });
+
+    Queue::assertNotPushed(SnowflakeSync::$importJob);
+
+    TestModel::create(['name' => 'Test 2']);
+
+    Queue::assertPushed(SnowflakeSync::$importJob);
+});
+
+it('re-enables syncing even if callback throws', function () {
+    try {
+        TestModel::withoutSyncingToSnowflake(function () {
+            throw new RuntimeException('test');
+        });
+    } catch (RuntimeException) {
+    }
+
+    TestModel::create(['name' => 'Test']);
 
     Queue::assertPushed(SnowflakeSync::$importJob);
 });
