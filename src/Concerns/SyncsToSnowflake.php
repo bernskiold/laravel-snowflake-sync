@@ -17,16 +17,21 @@ use function in_array;
 
 trait SyncsToSnowflake
 {
+    protected static bool $snowflakeObserverRegistered = false;
+
     public static function bootSyncsToSnowflake()
     {
-        $observer = new ModelObserver;
+        static::$snowflakeObserverRegistered = false;
+    }
 
-        static::saved(fn ($model) => $observer->saved($model));
-        static::deleted(fn ($model) => $observer->deleted($model));
+    // Registers the observer after boot completes to avoid the recursive
+    // boot that observe() triggers via its internal `new static` call.
+    public function initializeSyncsToSnowflake(): void
+    {
+        if (! static::$snowflakeObserverRegistered) {
+            static::$snowflakeObserverRegistered = true;
 
-        if (static::usesSoftDeleteSnowflakeSync()) {
-            static::registerModelEvent('forceDeleted', fn ($model) => $observer->forceDeleted($model));
-            static::registerModelEvent('restored', fn ($model) => $observer->restored($model));
+            static::observe(new ModelObserver);
         }
     }
 
