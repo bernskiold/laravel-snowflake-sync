@@ -77,6 +77,17 @@ trait SyncsToSnowflake
         return true;
     }
 
+    /**
+     * When a soft-deletable model is (soft) deleted, should the row be removed
+     * from Snowflake? Defaults to false — the row is re-synced so the warehouse
+     * keeps soft-deleted records. Override to true on models whose Snowflake
+     * table does not retain soft-deleted rows.
+     */
+    public function removeFromSnowflakeOnSoftDelete(): bool
+    {
+        return false;
+    }
+
     public function snowflakeTable(): string
     {
         return $this->getTable();

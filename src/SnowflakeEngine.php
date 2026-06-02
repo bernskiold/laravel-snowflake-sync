@@ -29,14 +29,18 @@ class SnowflakeEngine
 
         $keys = $data->pluck($keyColumn)->filter()->values();
 
-        DB::connection($connection)
-            ->table($table)
-            ->whereIn($keyColumn, $keys)
-            ->delete();
+        // Replace the affected rows atomically so a failed insert does not
+        // leave the table with the rows deleted but not re-inserted.
+        DB::connection($connection)->transaction(function () use ($connection, $table, $keyColumn, $keys, $data) {
+            DB::connection($connection)
+                ->table($table)
+                ->whereIn($keyColumn, $keys)
+                ->delete();
 
-        DB::connection($connection)
-            ->table($table)
-            ->insert($data->toArray());
+            DB::connection($connection)
+                ->table($table)
+                ->insert($data->toArray());
+        });
     }
 
     public function delete(Collection $models): void
