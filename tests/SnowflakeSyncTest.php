@@ -1,12 +1,13 @@
 <?php
 
+use Bernskiold\LaravelSnowflakeSync\Jobs\FlushSnowflakeSync;
 use Bernskiold\LaravelSnowflakeSync\Jobs\RemoveFromSnowflake;
 use Bernskiold\LaravelSnowflakeSync\Jobs\SnowflakeImport;
 use Bernskiold\LaravelSnowflakeSync\SnowflakeEngine;
 use Bernskiold\LaravelSnowflakeSync\SnowflakeSync;
 
 it('has a version constant', function () {
-    expect(SnowflakeSync::VERSION)->toBe('1.0.0');
+    expect(SnowflakeSync::VERSION)->toBe('0.3.0');
 });
 
 it('has default import job class', function () {
@@ -49,4 +50,17 @@ it('can change engine class', function () {
     expect(SnowflakeSync::$engine)->toBe($customClass);
 
     SnowflakeSync::$engine = $original;
+});
+
+it('has default flush job class', function () {
+    expect(SnowflakeSync::$flushJob)->toBe(FlushSnowflakeSync::class);
+});
+
+it('can change flush job class', function () {
+    $original = SnowflakeSync::$flushJob;
+
+    SnowflakeSync::flushUsing('CustomFlushJob');
+    expect(SnowflakeSync::$flushJob)->toBe('CustomFlushJob');
+
+    SnowflakeSync::$flushJob = $original;
 });

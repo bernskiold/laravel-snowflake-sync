@@ -1,18 +1,22 @@
 <?php
 
 use Bernskiold\LaravelSnowflakeSync\Events\ModelsRemoved;
+use Bernskiold\LaravelSnowflakeSync\Tests\Testing\TestModel;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 
-it('holds a collection of models', function () {
-    $model = Mockery::mock(Model::class);
-    $collection = new Collection([$model]);
+it('holds the model class and the removed keys', function () {
+    $event = new ModelsRemoved(TestModel::class, [1, 2]);
 
-    $event = new ModelsRemoved($collection);
-
-    expect($event->models)->toBe($collection);
+    expect($event->modelClass)->toBe(TestModel::class)
+        ->and($event->keys)->toBe([1, 2]);
 });
 
-afterEach(function () {
-    Mockery::close();
+it('can be built from a collection of models', function () {
+    $first = TestModel::create(['name' => 'First']);
+    $second = TestModel::create(['name' => 'Second']);
+
+    $event = ModelsRemoved::forModels(new Collection([$first, $second]));
+
+    expect($event->modelClass)->toBe(TestModel::class)
+        ->and($event->keys)->toBe([$first->id, $second->id]);
 });
