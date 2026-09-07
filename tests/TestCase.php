@@ -11,6 +11,17 @@ class TestCase extends Orchestra
     {
         parent::setUp();
 
+        // The Redis buffer is the production default; the suite has no Redis,
+        // and an in-memory buffer is enough because nothing here crosses a
+        // process boundary.
+        $this->app['config']->set('snowflake-sync.buffer.driver', 'array');
+
+        // Testbench defaults to the `sync` driver, which would run every flush
+        // job the observer asks for in the middle of an unrelated test. Tests
+        // that care about dispatching use Queue::fake().
+        $this->app['config']->set('queue.connections.null', ['driver' => 'null']);
+        $this->app['config']->set('queue.default', 'null');
+
         $this->setUpDatabase();
     }
 

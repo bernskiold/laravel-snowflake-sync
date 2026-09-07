@@ -8,16 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelObserver
 {
-    public bool $afterCommit = false;
-
     protected bool $forceSaving = false;
 
     protected static array $syncingDisabledFor = [];
-
-    public function __construct()
-    {
-        $this->afterCommit = config('snowflake-sync.after_commit', false);
-    }
 
     public static function enableSyncingFor($class)
     {

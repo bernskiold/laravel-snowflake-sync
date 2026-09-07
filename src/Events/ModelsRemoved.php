@@ -3,13 +3,29 @@
 namespace Bernskiold\LaravelSnowflakeSync\Events;
 
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 
 class ModelsRemoved
 {
-    public Collection $models;
+    /**
+     * @param  class-string<Model>  $modelClass
+     * @param  list<int|string>  $keys
+     */
+    public function __construct(
+        public string $modelClass,
+        public array $keys,
+    ) {}
 
-    public function __construct(Collection $models)
+    /**
+     * The removal path normally has only keys to work with — a hard-deleted row
+     * no longer exists to be loaded — but callers that still hold the models
+     * can build the event from them.
+     */
+    public static function forModels(Collection $models): self
     {
-        $this->models = $models;
+        return new self(
+            $models->first()::class,
+            $models->map(fn (Model $model) => $model->getSnowflakeKey())->all(),
+        );
     }
 }
